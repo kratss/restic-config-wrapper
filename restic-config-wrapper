@@ -1,0 +1,32 @@
+#!/usr/bin/env fish
+function parse_config
+    if test -n "$XDG_CONFIG_HOME"
+        set conf_dir $XDG_CONFIG_HOME
+    else if test -d ~/.config/hawk
+        set conf_dir ~/.config
+    end
+
+    set section
+    for line in (cat $conf_dir/restic/config.ini)
+        string trim -q $line
+        if echo $line | grep -q "^#"; or test -z $line
+            continue
+        else if test $line = "[backup directories]"
+            set section backup_directories
+        else if test $line = "[options]"
+            set section options
+        else if test $section = backup_directories
+            set line (eval echo $line) #expands shell vars in config file
+            set -a args "$line"
+        else if test $section = options
+            set line (eval echo $line) #expands shell vars in config file
+            set -a args "--$line"
+        end
+    end
+end
+# fish struggles to return arrays. Instead initialize 
+# $args outside function scope
+set args
+parse_config
+source ~/.private/restic.env
+restic backup $args
